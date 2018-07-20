@@ -1,0 +1,1 @@
+make g++ openssl libssl-dev iptables xorg tightvncserver xfonts-75dpi xfonts-100dpi openbox gconf2 firefox 
