@@ -1,33 +1,68 @@
 FROM ubuntu:16.04
 
-ENV VPLJAIL_SYS_VERSION=2.2.2
+ENV VPLJAIL_SYS_VERSION=2.5.2
 ENV VPLJAIL_INSTALL_DIR /etc/vpl
 ENV FQDN localhost
 
-RUN apt-get -qq update && apt-get -yqq install --no-install-recommends vim curl apt-utils autotools-dev automake  \
-	openssl libssl-dev gconf2 firefox \
-	make g++ gcc gdb nodejs php7.0-cli php7.0-sqlite python pydb python-tk \
-	 locales supervisor && rm -rf /var/lib/apt/lists/* \
-	&& localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+RUN apt-get -qq update && apt-get -yqq install --no-install-recommends  curl apt-utils autotools-dev automake
 
-ENV LC_ALL en_US.UTF-8
+ENV TEMP /tmp/
+WORKDIR $TEMP
+RUN curl http://vpl.dis.ulpgc.es/releases/vpl-jail-system-$VPLJAIL_SYS_VERSION.tar.gz | tar -zxC ./
+ENV DEBIAN_FRONTEND noninteractive
 
-WORKDIR /tmp/vpl-jail-system-$VPLJAIL_SYS_VERSION/
-RUN 	curl http://vpl.dis.ulpgc.es/releases/vpl-jail-system-$VPLJAIL_SYS_VERSION.tar.gz | tar -zxC /tmp/ \
-	&& ./configure && make && mkdir $VPLJAIL_INSTALL_DIR && cp src/vpl-jail-server $VPLJAIL_INSTALL_DIR \
-	&& cp vpl-jail-system.conf $VPLJAIL_INSTALL_DIR \
-	&& chmod 600 $VPLJAIL_INSTALL_DIR/vpl-jail-system.conf && cp vpl_*.sh /etc/vpl && chmod +x /etc/vpl/*.sh \
-	&& cp vpl-jail-system.initd /etc/init.d/vpl-jail-system && chmod +x /etc/init.d/vpl-jail-system \
-	&& mkdir /var/vpl-jail-system && chmod 0600 /var/vpl-jail-system \
-	&& printf "[supervisord]\nnodaemon=false\n[program:vpl-jail-system]\ncommand=/etc/init.d/vpl-jail-system start" >> /etc/supervisor/supervisord.conf \
-	&& rm -rf /tmp/vpl-jail-system-$VPLJAIL_SYS_VERSION/
+WORKDIR $TEMP/vpl-jail-system-$VPLJAIL_SYS_VERSION/
+# THe next run statement will install the dependencies that  im needing.
+# These packages are installed by VPL, but i want to create
+# A cache layer for these dependencies
+RUN  apt-get update -y  && apt-get install -y software-properties-common && add-apt-repository universe &> /dev/null 
+# Install dependencies by my own
+RUN  apt-get install -y make  \ 
+	# VPL core packages
+	lsb lsb-core \
+	g++ \
+	openssl \
+	libssl-dev \
+	iptables \
+	xorg \
+	dbus-x11 \
+	tightvncserver \
+	xfonts-75dpi \
+	xfonts-100dpi \
+	openbox \
+	gconf2 \
+	xterm \
+	firefox \
+	wget \
+	curl \
+net-tools
 
-RUN apt-get update -y  \ 
-    && apt-get -yqq install --no-install-recommends  software-properties-common \
-    && add-apt-repository ppa:openjdk-r/ppa \
-    && apt-get update -y
-RUN apt-get install -y default-jdk openjdk-7-jdk checkstyle junit4 junit
-WORKDIR /etc/vpl/
-COPY ./app/entrypoint.sh /
-RUN chmod +x /entrypoint.sh
-CMD ["/entrypoint.sh"]
+RUN apt-get install -y software-properties-common && apt-get update -y && add-apt-repository universe  \
+	&& apt-get update -y 
+
+RUN  apt-get install -y \
+	default-jre  openjdk-8-jre  \
+	default-jdk  openjdk-8-jdk  \
+  && update-alternatives --config java && update-alternatives --auto java \
+	&& update-alternatives --auto javac\
+	&& apt-get install -y \
+	gcc \
+	openjfx \
+	checkstyle \
+	junit4 \
+	junit 
+
+# We will say yes to create a certificate
+# We will say yes to create a wildcard for the cert
+# We will say to the rest of questions
+RUN printf 'y\ny\nn\nn\nn\nn\nn\nn\nn' | ./install-vpl-sh ; exit 0
+# GO to the vpl service folder
+WORKDIR $VPLJAIL_INSTALL_DIR
+# Allow to execute
+# Install supervisor
+RUN apt-get install -y supervisor 
+# Copy the new entrypoint
+COPY ./app/entrypoint.sh .
+RUN chmod +x ./entrypoint.sh
+# Run all of this shit
+CMD ["./entrypoint.sh"]
