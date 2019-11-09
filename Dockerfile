@@ -54,7 +54,7 @@ RUN  apt-get install -y \
 
 # We will say yes to create a certificate
 # We will say yes to create a wildcard for the cert
-# We will say to the rest of questions
+# We will say to the rest of questions including the development stuff
 RUN printf 'y\ny\nn\nn\nn\nn\nn\nn\nn' | ./install-vpl-sh ; exit 0
 # GO to the vpl service folder
 WORKDIR $VPLJAIL_INSTALL_DIR
