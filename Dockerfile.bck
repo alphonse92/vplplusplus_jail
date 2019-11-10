@@ -1,24 +1,24 @@
 FROM ubuntu:16.04
 
-ENV VPLJAIL_SYS_VERSION=2.5.2
+ARG VPLJAIL_SYS_VERSION=2.5.2
+
 ENV VPLJAIL_INSTALL_DIR /etc/vpl
 ENV FQDN localhost
-
-RUN apt-get -qq update && apt-get -yqq install --no-install-recommends  curl apt-utils autotools-dev automake
-
 ENV TEMP /tmp/
-WORKDIR $TEMP
-RUN curl http://vpl.dis.ulpgc.es/releases/vpl-jail-system-$VPLJAIL_SYS_VERSION.tar.gz | tar -zxC ./
 ENV DEBIAN_FRONTEND noninteractive
 
-WORKDIR $TEMP/vpl-jail-system-$VPLJAIL_SYS_VERSION/
 # THe next run statement will install the dependencies that  im needing.
 # These packages are installed by VPL, but i want to create
 # A cache layer for these dependencies
-RUN  apt-get update -y  && apt-get install -y software-properties-common && add-apt-repository universe &> /dev/null 
-# Install dependencies by my own
-RUN  apt-get install -y make  \ 
+RUN  apt-get update -y  \
+	&& apt-get install -y  --no-install-recommends  \
+	# Install supervisor to check the process
+	supervisor \
+	curl apt-utils autotools-dev automake software-properties-common  \
+	&& add-apt-repository universe &> /dev/null \
+	&& apt-get install --no-install-recommends \
 	# VPL core packages
+	make  \ 
 	lsb lsb-core \
 	g++ \
 	openssl \
@@ -35,17 +35,15 @@ RUN  apt-get install -y make  \
 	firefox \
 	wget \
 	curl \
-net-tools
-
-RUN apt-get install -y software-properties-common && apt-get update -y && add-apt-repository universe  \
-	&& apt-get update -y 
-
+	net-tools	
+	
+# Install software development kit
 RUN  apt-get install -y \
 	default-jre  openjdk-8-jre  \
 	default-jdk  openjdk-8-jdk  \
-  && update-alternatives --config java && update-alternatives --auto java \
-	&& update-alternatives --auto javac\
-	&& apt-get install -y \
+	# && update-alternatives --config java && update-alternatives --auto java \
+	# && update-alternatives --auto javac\
+	# && apt-get install -y \
 	gcc \
 	openjfx \
 	checkstyle \
@@ -55,12 +53,13 @@ RUN  apt-get install -y \
 # We will say yes to create a certificate
 # We will say yes to create a wildcard for the cert
 # We will say to the rest of questions including the development stuff
-RUN printf 'y\ny\nn\nn\nn\nn\nn\nn\nn' | ./install-vpl-sh ; exit 0
-# GO to the vpl service folder
+RUN  cd $TEMP \ 
+	&& curl http://vpl.dis.ulpgc.es/releases/vpl-jail-system-$VPLJAIL_SYS_VERSION.tar.gz | tar -zxC ./ \
+	&& cd $TEMP/vpl-jail-system-$VPLJAIL_SYS_VERSION/ \
+	&& printf 'y\ny\nn\nn\nn\nn\nn\nn\nn' | ./install-vpl-sh ; exit 0
+
 WORKDIR $VPLJAIL_INSTALL_DIR
 # Allow to execute
-# Install supervisor
-RUN apt-get install -y supervisor 
 # Copy the new entrypoint
 COPY ./app/entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
