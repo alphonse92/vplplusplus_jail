@@ -6,10 +6,11 @@ This repo contains the Dockerfile to build the image for Vpl Jail Execution
 
 # Build
 
+`docker-compose build jail`
+
 # Arguments
 
 1. VERSION: Jail version that you want to add to the container
-
 
 # RUN
 
